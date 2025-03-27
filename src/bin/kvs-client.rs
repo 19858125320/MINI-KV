@@ -4,6 +4,8 @@ use std::net::SocketAddr;
 use tokio::signal;
 use std::io::{self,Write};
 use log::{error,warn,info};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
 #[derive(Parser, Debug)]
 #[command(name = "kvs-client", version, author, about = "A key value store client")]
 struct KvsClient{
@@ -97,6 +99,43 @@ async fn handle_request(client:&mut KvClient,cmd:&str)->Result<()>{
     Ok(())
 }
 
+fn print_welcome() -> Result<()> {
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+
+    // 更精细的 ASCII 艺术
+    let ascii_art = r#"
+    ██████   ██████ █████ ██████   █████ █████            █████   ████ █████   █████
+    ░░██████ ██████ ░░███ ░░██████ ░░███ ░░███            ░░███   ███░ ░░███   ░░███ 
+     ░███░█████░███  ░███  ░███░███ ░███  ░███             ░███  ███    ░███    ░███ 
+     ░███░░███ ░███  ░███  ░███░░███░███  ░███  ██████████ ░███████     ░███    ░███ 
+     ░███ ░░░  ░███  ░███  ░███ ░░██████  ░███ ░░░░░░░░░░  ░███░░███    ░░███   ███  
+     ░███      ░███  ░███  ░███  ░░█████  ░███             ░███ ░░███    ░░░█████░   
+     █████     █████ █████ █████  ░░█████ █████            █████ ░░████    ░░███     
+    ░░░░░     ░░░░░ ░░░░░ ░░░░░    ░░░░░ ░░░░░            ░░░░░   ░░░░      ░░░
+    "#;
+
+    // 渐变颜色效果
+    let lines: Vec<&str> = ascii_art.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
+        if i < 6 { // 前几行用青色渐变
+            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
+        } else if i < 8 { // 中间用黄色
+            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true))?;
+        } else { // 最后一行用绿色
+            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
+        }
+        writeln!(&mut stdout, "{}", line)?;
+    }
+
+    // 版本号和提示
+    stdout.set_color(ColorSpec::new().set_fg(Some(Color::Magenta)).set_italic(true))?;
+    writeln!(&mut stdout, "\nServer Version: v1.0")?;
+    stdout.reset()?;
+    writeln!(&mut stdout, "Type 'exit' to quit or 'help' for commands.")?;
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main()->Result<()>{
     let kvs = KvsClient::parse();
@@ -105,9 +144,7 @@ async fn main()->Result<()>{
     
     let mut client=KvClient::new(kvs.addr).await?;
 
-    println!("welcome to use MINI-KV");
-    println!("Type 'exit' to quit.");
-    //print!("mini-kv> ");
+    print_welcome()?;
     loop {
         // 打印提示符
         print!("mini-kv> ");

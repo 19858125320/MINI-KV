@@ -2,6 +2,7 @@
 use std::fs::{self,OpenOptions};
 use std::path::{Path, PathBuf};
 use env_logger::Builder;
+use log::info;
 use std::io::Write;
 use crate::{Result,KvsError};
 //请求协议格式
@@ -116,9 +117,10 @@ impl WrapCmd{
 */
 
 pub async fn parse_response(s:String)->Result<String>{
+    let len=s.len();
     if s.starts_with("OK"){
-        if s.len()>2{
-            return Ok(s[2..].to_string());
+        if len>3{
+            return Ok(s[2..len-1].to_string());
         }
         return Ok("".to_string());
     }else{

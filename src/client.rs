@@ -49,7 +49,7 @@ impl KvClient{
         let mut response=String::new();
         self.reader.read_line(&mut response).await?;
         let res=parse_response(response).await?;
-        info!("receive response {}",res);
+        //info!("receive response {}",res);
         Ok(res)
     }
 }
