@@ -1,3 +1,18 @@
+<div align="center">
+<!-- 语言切换栏（带背景和圆角） -->
+<div style="margin: 20px auto; padding: 12px; 
+            background: #f8f9fa; border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            width: fit-content;">
+  <strong>
+    <a href="./README.md" style="margin: 0 10px; color: #2c3e50; text-decoration: none;font-size: 18px;">🇨🇳 中文</a>
+    <span style="color: #ddd;">|</span>
+    <a href="./README-EN.md" style="margin: 0 10px; color: #2c3e50; text-decoration: none;font-size: 18px;">🇺🇸 English</a>
+  </strong>
+</div>
+
+</div>
+
 ```
     ██████   ██████ █████ ██████   █████ █████            █████   ████ █████   █████
     ░░██████ ██████ ░░███ ░░██████ ░░███ ░░███            ░░███   ███░ ░░███   ░░███ 
