@@ -1,3 +1,15 @@
+<!-- 语言切换栏（带背景和圆角） -->
+<div style="margin: 20px auto; padding: 12px; 
+            background: #f8f9fa; border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            width: fit-content;">
+  <strong>
+    <a href="./README.md" style="margin: 0 10px; color: #2c3e50; text-decoration: none;font-size: 18px;">🇨🇳 中文</a>
+    <span style="color: #ddd;">|</span>
+    <a href="./README-EN.md" style="margin: 0 10px; color: #2c3e50; text-decoration: none;font-size: 18px;">🇺🇸 English</a>
+  </strong>
+</div>
+
 ```
     ██████   ██████ █████ ██████   █████ █████            █████   ████ █████   █████
     ░░██████ ██████ ░░███ ░░██████ ░░███ ░░███            ░░███   ███░ ░░███   ░░███ 
@@ -17,21 +29,22 @@ Rust实现的键值存储引擎，保证数据持久化到文件，防止丢失�
 MINI-KV
 ├── src
 │   ├── bin
-│   │   ├── kvs-client.rs               # 客户端程序入库
-│   │   └── kvs-server.rs               # 服务端程序入库
+│   │   ├── kvs-client.rs               # 客户端程序入口
+│   │   └── kvs-server.rs               # 服务端程序入口
 │   ├── engines
-│   │   ├── kvs.rs               # 本地kvs存储引擎
+│   │   ├── kvs.rs               # 本地存储引擎
 │   │   └── sled.rs              # 第三方sled引擎
 │   ├── thread_pool
 │   │   ├── native.rs               # 虚假的线程池
 │   │   └── shard.rs                # 基于channel的线程池
 │   ├── client.rs                   # 客户端核心处理逻辑
 │   ├── server.rs                   # 服务端核心处理逻辑
-│   ├── common.rs                   # 公有的一些实现，如数据的编解码
+│   ├── common.rs                   # 公共模块，如数据的编解码，消息的解析等
 │   └── error.rs                    # 错误定义
 ├── benches                             # 基准测试
 ├── tests                               # 测试用例
-└── README.md                           # 项目文档
+├── README.md                           # 中文版README
+└── README-EN.md                        # 英文版README
 ```
 
 ## 源码编译
