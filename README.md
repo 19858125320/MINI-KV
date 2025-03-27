@@ -93,6 +93,14 @@ kvs-client [-a/--addr] [-l/--log]
 
 进入shell后，输入set key value/get key/remove key与服务端交互，实现插入，查找，删除数据
 
+## 待完成功能
+- 服务端使用tokio重构
+- 添加raft支持多副本
+- 抽象出来一个解析模块
+- 扩展通信协议实现更丰富的功能
+- 实现基于LSM的存储引擎
+- 支持mvcc
+- 支持事务
 ## 贡献
 
 欢迎提交问题和拉取请求。

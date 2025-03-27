@@ -93,6 +93,14 @@ kvs-client [-a/--addr] [-l/--log]
 
 After entering the shell, enter set key value/get key/remove key to interact with the server to insert, search, and delete data.
 
+## TODO
+- Refactor the server using tokio
+- Add raft to support multiple replicas
+- Abstract a parsing module
+- Extend the communication protocol to achieve richer functions
+- Implement a storage engine based on LSM
+- Support mvcc
+- Support transactions
 ## Contribution
 
 Issues and pull requests are welcome.
