@@ -1,6 +1,29 @@
 # kvs--键值存储引擎
 Rust实现的键值存储引擎，保证数据持久化到文件，防止丢失。(本项目用作Rust练习目的，不可用于生产环境!!!)
 
+## 项目结构
+
+```
+MINI-KV
+├── src
+│   ├── bin
+│   │   ├── kvs-client.rs               # 客户端程序入库
+│   │   └── kvs-server.rs               # 服务端程序入库
+│   ├── engines
+│   │   ├── kvs.rs               # 本地kvs存储引擎
+│   │   └── sled.rs              # 第三方sled引擎
+│   ├── thread_pool
+│   │   ├── native.rs               # 虚假的线程池
+│   │   └── shard.rs                # 基于channel的线程池
+│   ├── client.rs                   # 客户端核心处理逻辑
+│   ├── server.rs                   # 服务端核心处理逻辑
+│   ├── common.rs                   # 公有的一些实现，如数据的编解码
+│   └── error.rs                    # 错误定义
+├── benches                             # 基准测试
+├── tests                               # 测试用例
+└── README.md                           # 项目文档
+```
+
 ## 源码编译
 ### 1、客户端编译
 ```sh
