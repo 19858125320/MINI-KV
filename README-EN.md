@@ -68,7 +68,7 @@ The client is an interactive shell that mainly sends get/set/remove commands to 
 
 ### 2 Command Usage
 ```
-kvs-client --help: 查看使用说明 
+kvs-client --help: View instructions
 ```
 ```
 kvs-client [-a/--addr] [-l/--log]
