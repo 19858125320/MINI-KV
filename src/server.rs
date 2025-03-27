@@ -36,8 +36,8 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
         match reader.read_exact(&mut len_buf) {
             Ok(()) => (),
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                //std::thread::sleep(std::time::Duration::from_millis(10));
-                break;
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                continue;
             }
             Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break, // 客户端关闭连接
             Err(e) => return Err(e).map_err(KvsError::Io),
@@ -52,7 +52,7 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
         match cmd.cmd{
             Cmd::Get(_)=>{
                 info!("receive get cmd {:?} from client",cmd);
-                let res=match engine.get(cmd.key){
+                let mut res=match engine.get(cmd.key){
                     Ok(Some(v))=>{
                         let res=generate_response(true, v);
                         res
@@ -66,11 +66,12 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                         res
                     }
                 };
+                res.push('\n');
                 writer.write_all(res.as_bytes())?;
             },
             Cmd::Set(_)=>{
                 info!("receive set cmd {:?}  from client",cmd);
-                let res=match engine.set(cmd.key, cmd.value){
+                let mut res=match engine.set(cmd.key, cmd.value){
                     Ok(_)=>{
                         let res=generate_response(true, "".to_string());
                         res
@@ -80,11 +81,12 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                         res
                     }
                 };
+                res.push('\n');
                 writer.write_all(res.as_bytes())?;
             },
             Cmd::Remove(_)=>{
                 info!("receive remove cmd {:?}  from client",cmd);
-                let res=match engine.remove(cmd.key){
+                let mut res=match engine.remove(cmd.key){
                     Ok(_)=>{
                         let res=generate_response(true, "".to_string());
                         res
@@ -98,6 +100,7 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                         res
                     }
                 };
+                res.push('\n');
                 writer.write_all(res.as_bytes())?;
             }
         }

@@ -5,7 +5,8 @@
 pub use engines::{KvStore,KVEngine,SledStore};
 pub use error::{KvsError, Result};
 pub use server::KvServer;
-pub use common::{Cmd,WrapCmd,parse_response};
+pub use client::KvClient;
+pub use common::{Cmd,WrapCmd,parse_response,init_logger};
 pub use thread_pool::{ThreadPool,ShardThreadPool};
 pub mod client;
 pub mod common;

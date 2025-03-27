@@ -1,5 +1,8 @@
 //use std::fmt::Result;
-
+use std::fs::{self,OpenOptions};
+use std::path::{Path, PathBuf};
+use env_logger::Builder;
+use std::io::Write;
 use crate::{Result,KvsError};
 //请求协议格式
 /* 
@@ -112,7 +115,7 @@ impl WrapCmd{
 失败：Error<message>
 */
 
-pub fn parse_response(s:String)->Result<String>{
+pub async fn parse_response(s:String)->Result<String>{
     if s.starts_with("OK"){
         if s.len()>2{
             return Ok(s[2..].to_string());
@@ -127,22 +130,39 @@ pub fn parse_response(s:String)->Result<String>{
     }
 }
 
-// #[test]
-// fn test_decode_get(){
-//     let cmd=WrapCmd::new_extra(Cmd::from_u8(1), "mongodb".to_owned(), "".to_string());
-//     let encode_val=cmd.encode();
+pub fn init_logger(log_dir: &str,is_client:bool) -> Result<()> {
+    // 确保日志目录存在
+    fs::create_dir_all(log_dir)?;
 
-//     let decode_val=WrapCmd::decode(encode_val).unwrap();
-//     println!("decode value is: {:?}",decode_val);
-//     assert_eq!(decode_val,cmd);
-// }
+    let log_path:PathBuf;
+    // 构造日志文件路径
+    if is_client{
+        log_path = Path::new(log_dir).join("kvs-client.log");
+    }else{
+        log_path = Path::new(log_dir).join("kvs-server.log");
+    }
+    let log_file = OpenOptions::new()
+    .write(true)
+    .append(true)
+    .create(true)
+    .open(log_path)?;
 
-// #[test]
-// fn test_decode_set(){
-//     let cmd=WrapCmd::new_extra(Cmd::from_u8(2), "mongodb".to_owned(), "mysql".to_string());
-//     let encode_val=cmd.encode();
+    // 配置 env_logger
+    Builder::new()
+        .filter_level(log::LevelFilter::Info) // 设置日志级别
+        .target(env_logger::Target::Pipe(Box::new(log_file))) // 输出到文件
+        .format(|buf, record| {
+            // 自定义日志格式
+            writeln!(
+                buf,
+                "{} {} {} - {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.level(),
+                record.target(),
+                record.args()
+            )
+        })
+        .init();
 
-//     let decode_val=WrapCmd::decode(encode_val).unwrap();
-//     println!("decode value is: {:?}",decode_val);
-//     assert_eq!(decode_val,cmd);
-// }
+    Ok(())
+}
