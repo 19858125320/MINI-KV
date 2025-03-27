@@ -1,8 +1,6 @@
-//use std::fmt::Result;
 use std::fs::{self,OpenOptions};
 use std::path::{Path, PathBuf};
 use env_logger::Builder;
-use log::info;
 use std::io::Write;
 use crate::{Result,KvsError};
 //请求协议格式

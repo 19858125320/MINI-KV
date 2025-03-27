@@ -66,38 +66,6 @@ fn parse_addr(s:&str)->std::result::Result<SocketAddr,String>{
     s.parse::<SocketAddr>().map_err(|e|format!("Invalid address '{}': {}", s, e))
 }
 
-// fn init_logger(log_dir: &str) -> Result<()> {
-//     // 确保日志目录存在
-//     fs::create_dir_all(log_dir)?;
-
-//     // 构造日志文件路径
-//     let log_path = Path::new(log_dir).join("kvs.log");
-//     let log_file = OpenOptions::new()
-//     .write(true)
-//     .append(true)
-//     .create(true)
-//     .open(log_path)?;
-
-//     // 配置 env_logger
-//     Builder::new()
-//         .filter_level(log::LevelFilter::Info) // 设置日志级别
-//         .target(env_logger::Target::Pipe(Box::new(log_file))) // 输出到文件
-//         .format(|buf, record| {
-//             // 自定义日志格式
-//             writeln!(
-//                 buf,
-//                 "{} {} {} - {}",
-//                 chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-//                 record.level(),
-//                 record.target(),
-//                 record.args()
-//             )
-//         })
-//         .init();
-
-//     Ok(())
-// }
-
 fn main(){
     //命令行参数解析
     let args=KvsServer::parse();

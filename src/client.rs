@@ -1,7 +1,5 @@
-//use std::fmt::Result;
 use std::net::SocketAddr;
-//use std::io::{BufReader, BufWriter, Write, Read};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{tcp::{OwnedReadHalf,OwnedWriteHalf},TcpStream};
 use tokio::time::{self,Duration};
 use crate::{Result,parse_response, WrapCmd};
@@ -34,9 +32,6 @@ impl KvClient{
                 }
             }
         }
-        // let reader = BufReader::new(stream.try_clone()?); // 克隆流用于读取
-        // let writer = BufWriter::new(stream);              // 原流用于写入
-        //info!("Connected to server at {}", addr);
     }
 
     pub async fn send_request(&mut self,cmd:WrapCmd)->Result<String>{
@@ -49,7 +44,7 @@ impl KvClient{
         let mut response=String::new();
         self.reader.read_line(&mut response).await?;
         let res=parse_response(response).await?;
-        //info!("receive response {}",res);
+        
         Ok(res)
     }
 }

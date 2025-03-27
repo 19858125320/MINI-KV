@@ -3,7 +3,7 @@ use kvs::{KvClient,Cmd,WrapCmd,KvsError,Result,init_logger};
 use std::net::SocketAddr;
 use tokio::signal;
 use std::io::{self,Write};
-use log::{error,warn,info};
+use log::{warn,info};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 #[derive(Parser, Debug)]
@@ -20,32 +20,6 @@ struct KvsClient{
 }
 
 const DEFAULT_ADDRESS:&str="127.0.0.1:4001";
-// #[derive(Subcommand, Debug)]
-// enum Commands{
-//     #[command(about = "Set the value of a string key to a string")]
-//     Set{
-//         #[arg(name = "KEY",help = "A string key", required = true)]
-//         key: String,
-//         #[arg(name = "VALUE",help = "The string value of the key", required = true)]
-//         value: String,
-//         #[arg(short,long,default_value=DEFAULT_ADDRESS,value_parser=parse_addr)]
-//         addr:SocketAddr,
-//     },
-//     #[command(about = "Get the string value of a given string key")]
-//     Get{
-//         #[arg(name = "KEY", help = "A string key", required = true)]
-//         key: String,
-//         #[arg(short,long,default_value=DEFAULT_ADDRESS,value_parser=parse_addr)]
-//         addr:SocketAddr,
-//     },
-//     #[command(about = "Remove a given key")]
-//     Rm{
-//         #[arg(name = "KEY",help = "A string key", required = true)]
-//         key: String,
-//         #[arg(short,long,default_value=DEFAULT_ADDRESS,value_parser=parse_addr)]
-//         addr:SocketAddr,
-//     },
-// }
 
 fn parse_addr(s:&str)->std::result::Result<SocketAddr,String>{
     s.parse::<SocketAddr>().map_err(|e|format!("Invalid address '{}': {}", s, e))
@@ -117,11 +91,11 @@ fn print_welcome() -> Result<()> {
     // 渐变颜色效果
     let lines: Vec<&str> = ascii_art.lines().collect();
     for (i, line) in lines.iter().enumerate() {
-        if i < 6 { // 前几行用青色渐变
+        if i < 6 { 
             stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
-        } else if i < 8 { // 中间用黄色
+        } else if i < 8 { 
             stdout.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true))?;
-        } else { // 最后一行用绿色
+        } else { 
             stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
         }
         writeln!(&mut stdout, "{}", line)?;
@@ -188,52 +162,6 @@ async fn main()->Result<()>{
             }
         }
     }
-    // match kvs.subcommand{
-    //     Commands::Get { key,addr }=>{
-    //         let cmd=WrapCmd::new_extra(Cmd::Get(1), key, "".to_string());
-    //         let mut client=KvClient::new(addr)?;
-    //         let res=client.send_request(cmd);
-    //         match res{
-    //             Ok(v)=>{
-    //                 println!("{}",v);
-    //             },
-    //             Err(KvsError::KeyNotFound)=>{
-    //                 println!("Key not found");
-    //                 exit(0);
-    //             }
-    //             Err(e)=>{
-    //                 return Err(e);
-    //             }
-    //         }
-    //     }
-    //     Commands::Set { key,value,addr}=>{
-    //        // info!("receive set command");
-    //         let cmd=WrapCmd::new_extra(Cmd::Set(2), key, value);
-    //         let mut client=KvClient::new(addr)?;
-    //         let res=client.send_request(cmd);
-    //         match res{
-    //             Ok(_)=>{println!("Ok");},
-    //             Err(e)=>{
-    //                 return Err(e);
-    //             }
-    //         }
-    //     }
-    //     Commands::Rm { key,addr}=>{
-    //         let cmd=WrapCmd::new_extra(Cmd::Remove(3), key, "".to_string());
-    //         let mut client=KvClient::new(addr)?;
-    //         let res=client.send_request(cmd);
-    //         match res{
-    //             Ok(_)=>{println!("Ok");},
-    //             Err(KvsError::KeyNotFound)=>{
-    //                 println!("Key not found");
-    //                 exit(0);
-    //             }
-    //             Err(e)=>{
-    //                 return Err(e);
-    //             }
-    //         }
-    //     }
-    // };
     
     Ok(())
 }

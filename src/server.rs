@@ -132,12 +132,10 @@ impl<E:KVEngine,P:ThreadPool> KvServer<E,P>{
                     info!("accept connection:{:?}",addr);
                     let store = self.engine.clone();
                     let shutdown = self.shut_down.clone();
-                    //let stream=stream.try_clone()?;
+                    
                     self.pool.get_mut().spawn(move||{
-                        //let mut store=Arc::new(KvStore::open(std::path::Path::new("."))?);
                         handle_client(stream,addr,shutdown,store).unwrap();
                     });
-                    //self.handle_client(stream,addr)?;
                 }
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
                     std::thread::sleep(std::time::Duration::from_millis(100));
