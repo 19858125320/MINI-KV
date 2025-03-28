@@ -8,6 +8,8 @@ pub trait KVEngine:Clone+Send + 'static{
     ///get value string from kv engine
     fn get(&self, key: String) -> Result<Option<String>>;
 
+    fn scan(&self, start: String,end:String) -> Result<Vec<String>>;
+    
     ///remove key value string from kv engine
     fn remove(&self, key: String) -> Result<()>;
 }

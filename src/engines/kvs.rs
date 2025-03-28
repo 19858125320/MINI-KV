@@ -75,7 +75,7 @@ impl KvStore{
             path: Arc::clone(&path),
             index: Arc::clone(&index),
         };
-
+       
         Ok(KvStore {
             path,
             reader,
@@ -117,6 +117,17 @@ impl KVEngine for KvStore {
         }
     }
 
+    fn scan(&self, start: String,end:String) -> Result<Vec<String>> {
+        let mut res=Vec::new();
+        for entry in self.index.range(start..=end){
+            if let Command::Set { value, .. } = self.reader.read_command(*entry.value())? {
+                res.push(value);
+            } else {
+                return Err(KvsError::UnexpectedCommandType);
+            }
+        }
+        Ok(res)
+    }
     /// Removes a given key.
     ///
     /// # Errors

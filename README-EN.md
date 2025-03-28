@@ -91,7 +91,11 @@ kvs-client [-a/--addr] [-l/--log]
 - --addr: Optional parameter, used to specify the server's ip, port, default is：**127.0.0.1:4001**  
 - --log: Optional parameter, specifies the client log output directory, default is: ./log
 
-After entering the shell, enter set key value/get key/remove key to interact with the server to insert, search, and delete data.
+### Supported functions
+- **set key value:** Insert key and value
+- **get key:** Query value by key
+- **scan start end:** Return all data that meet start <= key <= end
+- **remove key:** Delete key
 
 ## TODO
 - Refactor the server using tokio

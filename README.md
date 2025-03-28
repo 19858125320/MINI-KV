@@ -91,7 +91,11 @@ kvs-client [-a/--addr] [-l/--log]
 - --addr: 可选参数，用来指定服务端的ip,port,默认为：**127.0.0.1:4001**  
 - --log: 可选参数，指定客户端日志输出目录，默认为: ./log
 
-进入shell后，输入set key value/get key/remove key与服务端交互，实现插入，查找，删除数据
+### 支持的功能
+- **set key value:** 插入
+- **get key:** 查询
+- **scan start end:** 返回所有满足start <= key <= end的数据
+- **remove key:** 删除key
 
 ## 待完成功能
 - 服务端使用tokio重构

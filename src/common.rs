@@ -14,6 +14,7 @@ pub enum Cmd{
     Get(u8),
     Set(u8),
     Remove(u8),
+    Scan(u8)
 }
 
 impl Cmd{
@@ -22,8 +23,10 @@ impl Cmd{
             return Cmd::Get(1);
         }else if c==2{
             return Cmd::Set(2);
-        }else{
+        }else if c==3{
             return Cmd::Remove(3);
+        }else{
+            return Cmd::Scan(4);
         }
     }
 
@@ -32,6 +35,7 @@ impl Cmd{
             Cmd::Get(_)=>"Get".to_string(),
             Cmd::Set(_)=>"Set".to_string(),
             Cmd::Remove(_)=>"Remove".to_string(),
+            Cmd::Scan(_)=>"Scan".to_string(),
         }
     }
 }
@@ -75,6 +79,16 @@ impl WrapCmd{
                 len+=self.key.len() as u32;
                 res.extend(u32::to_be_bytes(self.key.len() as u32));
                 res.extend_from_slice(self.key.as_bytes());
+            },
+            Cmd::Scan(c)=>{
+                res.push(c);
+                len+=8;
+                len+=self.key.len() as u32;
+                len+=self.value.len() as u32;
+                res.extend(u32::to_be_bytes(self.key.len() as u32));
+                res.extend_from_slice(self.key.as_bytes());
+                res.extend(u32::to_be_bytes(self.value.len() as u32));
+                res.extend_from_slice(self.value.as_bytes());
             }
         }
         fres.extend(u32::to_be_bytes(len));
@@ -110,6 +124,12 @@ impl WrapCmd{
             let val_len=u32::from_be_bytes(bytes);
             let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
             res.value=val;
+        }else if let Cmd::Scan(_)=cmd{
+            let st=5+key_len as usize;
+            let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
+            let val_len=u32::from_be_bytes(bytes);
+            let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
+            res.value=val;
         }
         Ok(res)
     }
@@ -118,7 +138,7 @@ impl WrapCmd{
 
 //响应协议格式
 /*
-成功：OK[value]\n//只有Get响应有value
+成功：OK[value]..[value]\n//只有Get响应有value,scan可能会有多个以空格间隔的value
 失败：Error<message>\n
 */
 

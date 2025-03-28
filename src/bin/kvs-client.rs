@@ -51,6 +51,14 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             }
             WrapCmd::new_extra(Cmd::Remove(3), key.to_string(), "".to_string())
         }
+        "scan"=>{
+            let start=iter.next().ok_or(KvsError::InvalidCommand)?;
+            let end=iter.next().ok_or(KvsError::InvalidCommand)?;
+            if iter.next().is_some(){
+                return Err(KvsError::InvalidCommand);
+            }
+            WrapCmd::new_extra(Cmd::Scan(4), start.to_string(), end.to_string())
+        }
         _=>{
             return Err(KvsError::InvalidCommand);
         }
@@ -66,8 +74,12 @@ async fn handle_request(client:&mut KvClient,cmd:&str)->Result<()>{
         Ok(response) => {
             if cmd.cmd==Cmd::Get(1){
                 println!("{}",response);
-            }
-            else{
+            } else if cmd.cmd==Cmd::Scan(4){
+                let v:Vec<&str>=response.split_whitespace().collect();
+                for s in v{
+                    println!("{}",s);
+                }
+            } else{
                 println!("Ok");
             }
         },

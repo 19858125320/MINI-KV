@@ -102,6 +102,30 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                 };
                 res.push('\n');
                 writer.write_all(res.as_bytes())?;
+            },
+            Cmd::Scan(_)=>{
+                info!("receive scan cmd {:?}  from client",cmd);
+                let mut res=match engine.scan(cmd.key, cmd.value){
+                    Ok(v)=>{
+                        let mut res=String::from("OK");
+                        let mut i=0;
+                        let v_len=v.len();
+                        for s in v{
+                            res.push_str(&s);
+                            if i!=v_len-1{
+                                res.push(' ');
+                            }
+                            i+=1
+                        }
+                        res
+                    },
+                    Err(e)=>{
+                        let res=generate_response(false,format!("{}",e));
+                        res
+                    }
+                };
+                res.push('\n');
+                writer.write_all(res.as_bytes())?;
             }
         }
         
