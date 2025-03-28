@@ -10,6 +10,7 @@ use std::sync::{atomic::{AtomicU64, Ordering},Arc, Mutex};
 use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::result::Result as stdResult;
+use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use crate::{Result,KvsError,KVEngine};
 
@@ -94,8 +95,8 @@ impl KVEngine for KvStore {
     /// # Errors
     ///
     /// It propagates I/O or serialization errors during writing the log.
-    fn set(&self, key: String, value: String) -> Result<()> {
-        self.writer.lock().unwrap().set(key, value)
+    fn set(&self, key: String, value: String,ttl:u32) -> Result<()> {
+        self.writer.lock().unwrap().set(key, value,ttl)
     }
 
     /// Gets the string value of a given string key.
@@ -107,6 +108,12 @@ impl KVEngine for KvStore {
     /// It returns `KvsError::UnexpectedCommandType` if the given command type unexpected.
     fn get(&self, key: String) -> Result<Option<String>> {
         if let Some(cmd_pos) = self.index.get(&key) {
+            //检查超时
+            if cmd_pos.value().ttl>0 && now()>cmd_pos.value().ttl{
+                info!("key {} expired,remove it",key);
+                self.remove(key)?;
+                return Ok(Some("key expired".to_string()));
+            }
             if let Command::Set { value, .. } = self.reader.read_command(*cmd_pos.value())? {
                 Ok(Some(value))
             } else {
@@ -225,9 +232,16 @@ struct KvStoreWriter {
     index: Arc<SkipMap<String, CommandPos>>,
 }
 
+fn now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+
 impl KvStoreWriter {
-    fn set(&mut self, key: String, value: String) -> Result<()> {
-        let cmd = Command::set(key, value);
+    fn set(&mut self, key: String, value: String,ttl:u32) -> Result<()> {
+        let cmd = Command::set(key, value,ttl);
         let pos = self.writer.pos;
         bincode::encode_into_writer(&cmd, &mut self.writer, bincode::config::standard())?;
         self.writer.flush()?;
@@ -235,8 +249,13 @@ impl KvStoreWriter {
             if let Some(old_cmd) = self.index.get(&key) {
                 self.uncompacted += old_cmd.value().len;
             }
+            let mut cmd_pos:CommandPos=(self.current_gen, pos..self.writer.pos).into();
+            if ttl>0{
+                cmd_pos.ttl=now()+ttl as u64;
+            }
+            
             self.index
-                .insert(key.clone(), (self.current_gen, pos..self.writer.pos).into());
+                .insert(key.clone(), cmd_pos);
         }
 
         if self.uncompacted > COMPACTION_THRESHOLD {
@@ -399,13 +418,13 @@ fn log_path(dir: &Path, r#gen: u64) -> PathBuf {
 /// Struct representing a command.
 #[derive(Serialize, Deserialize, Encode,Decode,Debug)]
 enum Command {
-    Set { key: String, value: String },
+    Set { key: String, value: String,ttl:u32 },
     Remove { key: String },
 }
 
 impl Command {
-    fn set(key: String, value: String) -> Command {
-        Command::Set { key, value }
+    fn set(key: String, value: String,ttl:u32) -> Command {
+        Command::Set { key, value,ttl }
     }
 
     fn remove(key: String) -> Command {
@@ -417,6 +436,7 @@ impl Command {
 #[derive(Debug, Clone, Copy)]
 struct CommandPos {
     r#gen: u64,
+    ttl:u64,
     pos: u64,
     len: u64,
 }
@@ -425,6 +445,7 @@ impl From<(u64, Range<u64>)> for CommandPos {
     fn from((r#gen, range): (u64, Range<u64>)) -> Self {
         CommandPos {
             r#gen,
+            ttl:0,
             pos: range.start,
             len: range.end - range.start,
         }

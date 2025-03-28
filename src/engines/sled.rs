@@ -16,7 +16,7 @@ impl SledStore{
 }
 
 impl KVEngine for SledStore{
-    fn set(&self, key: String, value: String) -> Result<()> {
+    fn set(&self, key: String, value: String,_:u32) -> Result<()> {
         self.t.insert(key.as_bytes(),value.as_bytes())?;
         self.t.flush()?;
         Ok(())

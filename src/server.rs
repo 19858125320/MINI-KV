@@ -71,7 +71,7 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
             },
             Cmd::Set(_)|Cmd::VSet(_)=>{
                 info!("receive set cmd {:?}  from client",cmd);
-                let mut res=match engine.set(cmd.key, cmd.value){
+                let mut res=match engine.set(cmd.key, cmd.value,cmd.expire){
                     Ok(_)=>{
                         let res=generate_response(true, "".to_string());
                         res

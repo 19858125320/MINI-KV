@@ -92,7 +92,7 @@ kvs-client [-a/--addr] [-l/--log]
 - --log: 可选参数，指定客户端日志输出目录，默认为: ./log
 
 ### 支持的功能
-- **set key value:** 插入
+- **set key value [EX ttl]:** 插入,支持key设置过期时间，ttl单位:秒
 - **get key:** 查询
 - **scan start end:** 返回所有满足start <= key <= end的数据
 - **remove key:** 删除key  

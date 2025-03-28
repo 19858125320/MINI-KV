@@ -15,8 +15,6 @@ struct KvsClient{
     /// The log directory to store the client log file
     #[arg(short,long, default_value = "./log")]
     log: String,
-    // #[command(subcommand)]
-    // subcommand: Commands,
 }
 
 const DEFAULT_ADDRESS:&str="127.0.0.1:4001";
@@ -42,16 +40,27 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::Get(1), key.to_string(), "".to_string())
+            WrapCmd::new_extra(Cmd::Get(1), key.to_string(), "".to_string(),0)
         }
         "set"=>{
             let mut iter=remain.split_whitespace();
             let key=iter.next().ok_or(KvsError::InvalidCommand)?;
             let value=iter.next().ok_or(KvsError::InvalidCommand)?;
-            if iter.next().is_some(){
-                return Err(KvsError::InvalidCommand);
+            //过期时间 EX 5代表5秒
+            let ex=iter.next();
+            if ex.is_some(){
+                if ex.unwrap().eq_ignore_ascii_case("EX"){
+                    let ex=iter.next().ok_or(KvsError::InvalidCommand)?;
+                    if iter.next().is_some(){
+                        return Err(KvsError::InvalidCommand);
+                    }
+                    let ex:u32=ex.parse().map_err(|_|KvsError::StringError("expire time invalid".to_string()))?;
+                    return Ok(WrapCmd::new_extra(Cmd::Set(2), key.to_string(), value.to_string(),ex));
+                }else{
+                    return Err(KvsError::InvalidCommand);
+                }
             }
-            WrapCmd::new_extra(Cmd::Set(2), key.to_string(), value.to_string())
+            WrapCmd::new_extra(Cmd::Set(2), key.to_string(), value.to_string(),0)
         }
         "remove"=>{
             let mut iter=remain.split_whitespace();
@@ -59,7 +68,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::Remove(3), key.to_string(), "".to_string())
+            WrapCmd::new_extra(Cmd::Remove(3), key.to_string(), "".to_string(),0)
         }
         "scan"=>{
             let mut iter=remain.split_whitespace();
@@ -68,7 +77,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::Scan(4), start.to_string(), end.to_string())
+            WrapCmd::new_extra(Cmd::Scan(4), start.to_string(), end.to_string(),0)
         }
         "vget"=>{
             let mut iter=remain.split_whitespace();
@@ -76,7 +85,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::VGet(5), key.to_string(), "".to_string())
+            WrapCmd::new_extra(Cmd::VGet(5), key.to_string(), "".to_string(),0)
         }
         "vset"=>{
             let parts:Vec<&str>=remain.splitn(2, ' ').collect();
@@ -90,7 +99,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             //     return Err(KvsError::InvalidCommand);
             // }
             //校验value是否符合vector格式
-            WrapCmd::new_extra(Cmd::VSet(6), key.to_string(), value)
+            WrapCmd::new_extra(Cmd::VSet(6), key.to_string(), value,0)
         }
         "vdel"=>{
             let mut iter=remain.split_whitespace();
@@ -98,7 +107,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::VDel(7), key.to_string(), "".to_string())
+            WrapCmd::new_extra(Cmd::VDel(7), key.to_string(), "".to_string(),0)
         }
         _=>{
             return Err(KvsError::InvalidCommand);

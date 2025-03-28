@@ -6,8 +6,8 @@ use crate::{Result,KvsError};
 use regex::Regex;
 //请求协议格式
 /* 
-  4     1     4              4
-<len><cmd><keylen><key>[<valuelen><value>] //其中value部分只有set命令才有
+  4     1     4              4              4
+<len><cmd><keylen><key>[<valuelen><value>]<ttl> //其中value部分只有set命令才有
 */
 
 #[derive(Copy,Clone,Debug,PartialEq,Eq)]
@@ -59,11 +59,12 @@ pub struct WrapCmd {
     pub cmd:Cmd,
     pub key:String,
     pub value:String,
+    pub expire:u32,
 }
 
 impl WrapCmd{
-    pub fn new_extra(cmd:Cmd,key:String,val:String)->Self{
-        Self{cmd:cmd,key:key,value:val}
+    pub fn new_extra(cmd:Cmd,key:String,val:String,ttl:u32)->Self{
+        Self{cmd:cmd,key:key,value:val,expire:ttl}
     }
 
     pub fn encode(&self)->Vec<u8>{
@@ -80,13 +81,14 @@ impl WrapCmd{
             },
             Cmd::Set(c)|Cmd::VSet(c)=>{
                 res.push(c);
-                len+=8;
+                len+=12;
                 len+=self.key.len() as u32;
                 len+=self.value.len() as u32;
                 res.extend(u32::to_be_bytes(self.key.len() as u32));
                 res.extend_from_slice(self.key.as_bytes());
                 res.extend(u32::to_be_bytes(self.value.len() as u32));
                 res.extend_from_slice(self.value.as_bytes());
+                res.extend(u32::to_be_bytes(self.expire));
             },
             Cmd::Remove(c)=>{
                 res.push(c);
@@ -138,6 +140,7 @@ impl WrapCmd{
             cmd:cmd,
             key:key,
             value:String::new(),
+            expire:0,
         };
         //如果有value,解析value
         if let Cmd::Set(_)=cmd {
@@ -146,6 +149,11 @@ impl WrapCmd{
             let val_len=u32::from_be_bytes(bytes);
             let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
             res.value=val;
+
+            let st=st+4+val_len as usize;
+            let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
+            let ttl=u32::from_be_bytes(bytes);
+            res.expire=ttl;
         }else if let Cmd::VSet(_)=cmd{
             let st=5+key_len as usize;
             let bytes:[u8;4]=s[st..st+4].try_into().unwrap();

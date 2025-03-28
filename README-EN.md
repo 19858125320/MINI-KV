@@ -92,7 +92,7 @@ kvs-client [-a/--addr] [-l/--log]
 - --log: Optional parameter, specifies the client log output directory, default is: ./log
 
 ### Supported functions
-- **set key value:** Insert key and value
+- **set key value:** Insert key and value,Support key expiration time setting, ttl unit: seconds
 - **get key:** Query value by key
 - **scan start end:** Return all data that meet start <= key <= end
 - **remove key:** Delete key
