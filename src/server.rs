@@ -50,7 +50,7 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
         let cmd=WrapCmd::decode(len as u32,command_buf)?;
         info!("Received command: {:?}",cmd);
         match cmd.cmd{
-            Cmd::Get(_)=>{
+            Cmd::Get(_)|Cmd::VGet(_)=>{
                 info!("receive get cmd {:?} from client",cmd);
                 let mut res=match engine.get(cmd.key){
                     Ok(Some(v))=>{
@@ -69,7 +69,7 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                 res.push('\n');
                 writer.write_all(res.as_bytes())?;
             },
-            Cmd::Set(_)=>{
+            Cmd::Set(_)|Cmd::VSet(_)=>{
                 info!("receive set cmd {:?}  from client",cmd);
                 let mut res=match engine.set(cmd.key, cmd.value){
                     Ok(_)=>{
@@ -84,7 +84,7 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                 res.push('\n');
                 writer.write_all(res.as_bytes())?;
             },
-            Cmd::Remove(_)=>{
+            Cmd::Remove(_)|Cmd::VDel(_)=>{
                 info!("receive remove cmd {:?}  from client",cmd);
                 let mut res=match engine.remove(cmd.key){
                     Ok(_)=>{

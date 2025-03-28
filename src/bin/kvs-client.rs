@@ -1,5 +1,5 @@
 use clap::Parser;
-use kvs::{KvClient,Cmd,WrapCmd,KvsError,Result,init_logger};
+use kvs::{KvClient,Cmd,WrapCmd,KvsError,Result,init_logger,validate_vector};
 use std::net::SocketAddr;
 use tokio::signal;
 use std::io::{self,Write};
@@ -26,10 +26,18 @@ fn parse_addr(s:&str)->std::result::Result<SocketAddr,String>{
 }
 
 async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
-    let mut iter=cmd.split_whitespace();
-    let cmd=iter.next().ok_or(KvsError::InvalidCommand)?;
+    let parts:Vec<&str>=cmd.splitn(2, ' ').collect();
+    if parts.len()<2{
+        return Err(KvsError::InvalidCommand);
+    }
+    //let mut iter=cmd.split_whitespace();
+    //let cmd=iter.next().ok_or(KvsError::InvalidCommand)?;
+    let cmd=parts[0];
+    let remain=parts[1].trim();
+
     let wrap_cmd=match cmd{
         "get"=>{
+            let mut iter=remain.split_whitespace();
             let key=iter.next().ok_or(KvsError::InvalidCommand)?;
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
@@ -37,6 +45,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             WrapCmd::new_extra(Cmd::Get(1), key.to_string(), "".to_string())
         }
         "set"=>{
+            let mut iter=remain.split_whitespace();
             let key=iter.next().ok_or(KvsError::InvalidCommand)?;
             let value=iter.next().ok_or(KvsError::InvalidCommand)?;
             if iter.next().is_some(){
@@ -45,6 +54,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             WrapCmd::new_extra(Cmd::Set(2), key.to_string(), value.to_string())
         }
         "remove"=>{
+            let mut iter=remain.split_whitespace();
             let key=iter.next().ok_or(KvsError::InvalidCommand)?;
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
@@ -52,12 +62,43 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             WrapCmd::new_extra(Cmd::Remove(3), key.to_string(), "".to_string())
         }
         "scan"=>{
+            let mut iter=remain.split_whitespace();
             let start=iter.next().ok_or(KvsError::InvalidCommand)?;
             let end=iter.next().ok_or(KvsError::InvalidCommand)?;
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
             WrapCmd::new_extra(Cmd::Scan(4), start.to_string(), end.to_string())
+        }
+        "vget"=>{
+            let mut iter=remain.split_whitespace();
+            let key=iter.next().ok_or(KvsError::InvalidCommand)?;
+            if iter.next().is_some(){
+                return Err(KvsError::InvalidCommand);
+            }
+            WrapCmd::new_extra(Cmd::VGet(5), key.to_string(), "".to_string())
+        }
+        "vset"=>{
+            let parts:Vec<&str>=remain.splitn(2, ' ').collect();
+            if parts.len()!=2{
+                return Err(KvsError::InvalidCommand);
+            }
+            let key=parts[0];
+            let value=parts[1];
+            let value=validate_vector(value)?;
+            // if iter.next().is_some(){
+            //     return Err(KvsError::InvalidCommand);
+            // }
+            //校验value是否符合vector格式
+            WrapCmd::new_extra(Cmd::VSet(6), key.to_string(), value)
+        }
+        "vdel"=>{
+            let mut iter=remain.split_whitespace();
+            let key=iter.next().ok_or(KvsError::InvalidCommand)?;
+            if iter.next().is_some(){
+                return Err(KvsError::InvalidCommand);
+            }
+            WrapCmd::new_extra(Cmd::VDel(7), key.to_string(), "".to_string())
         }
         _=>{
             return Err(KvsError::InvalidCommand);
@@ -79,7 +120,9 @@ async fn handle_request(client:&mut KvClient,cmd:&str)->Result<()>{
                 for s in v{
                     println!("{}",s);
                 }
-            } else{
+            }else if cmd.cmd==Cmd::VGet(5){
+                println!("{}",response);
+            }else{
                 println!("Ok");
             }
         },

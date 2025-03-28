@@ -96,6 +96,10 @@ kvs-client [-a/--addr] [-l/--log]
 - **get key:** Query value by key
 - **scan start end:** Return all data that meet start <= key <= end
 - **remove key:** Delete key
+---
+- **vget key:** Get vector
+- **vset key value:** Insert vector, value needs to conform to the vector format such as: [1,3,4]
+- **vdel key:** Delete vector
 
 ## TODO
 - Refactor the server using tokio

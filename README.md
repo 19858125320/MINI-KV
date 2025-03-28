@@ -95,7 +95,11 @@ kvs-client [-a/--addr] [-l/--log]
 - **set key value:** 插入
 - **get key:** 查询
 - **scan start end:** 返回所有满足start <= key <= end的数据
-- **remove key:** 删除key
+- **remove key:** 删除key  
+---
+- **vget key:** 获取向量
+- **vset key value:** 插入向量,value需要符合向量格式如:[1,3,4]
+- **vdel key:** 删除向量
 
 ## 待完成功能
 - 服务端使用tokio重构

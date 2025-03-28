@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use env_logger::Builder;
 use std::io::Write;
 use crate::{Result,KvsError};
+use regex::Regex;
 //请求协议格式
 /* 
   4     1     4              4
@@ -14,7 +15,11 @@ pub enum Cmd{
     Get(u8),
     Set(u8),
     Remove(u8),
-    Scan(u8)
+    Scan(u8),
+    //以下是向量类型相关的命令
+    VGet(u8),
+    VSet(u8),
+    VDel(u8),
 }
 
 impl Cmd{
@@ -25,9 +30,16 @@ impl Cmd{
             return Cmd::Set(2);
         }else if c==3{
             return Cmd::Remove(3);
-        }else{
+        }else if c==4{
             return Cmd::Scan(4);
+        }else if c==5{
+            return Cmd::VGet(5);
+        }else if c==6{
+            return Cmd::VSet(6);
+        }else if c==7{
+            return Cmd::VDel(7);
         }
+        panic!("Invalid Cmd");
     }
 
     pub fn to_string(&self)->String{
@@ -36,6 +48,9 @@ impl Cmd{
             Cmd::Set(_)=>"Set".to_string(),
             Cmd::Remove(_)=>"Remove".to_string(),
             Cmd::Scan(_)=>"Scan".to_string(),
+            Cmd::VGet(_)=>"VGet".to_string(),
+            Cmd::VSet(_)=>"VSet".to_string(),
+            Cmd::VDel(_)=>"VDel".to_string(),
         }
     }
 }
@@ -56,14 +71,14 @@ impl WrapCmd{
         let mut fres=Vec::new();
         let mut len:u32=1;
         match self.cmd{
-            Cmd::Get(c)=>{
+            Cmd::Get(c)|Cmd::VGet(c)=>{
                 res.push(c);
                 len+=4;
                 len+=self.key.len() as u32;
                 res.extend(u32::to_be_bytes(self.key.len() as u32));
                 res.extend_from_slice(self.key.as_bytes());
             },
-            Cmd::Set(c)=>{
+            Cmd::Set(c)|Cmd::VSet(c)=>{
                 res.push(c);
                 len+=8;
                 len+=self.key.len() as u32;
@@ -74,6 +89,13 @@ impl WrapCmd{
                 res.extend_from_slice(self.value.as_bytes());
             },
             Cmd::Remove(c)=>{
+                res.push(c);
+                len+=4;
+                len+=self.key.len() as u32;
+                res.extend(u32::to_be_bytes(self.key.len() as u32));
+                res.extend_from_slice(self.key.as_bytes());
+            },
+            Cmd::VDel(c)=>{
                 res.push(c);
                 len+=4;
                 len+=self.key.len() as u32;
@@ -118,7 +140,13 @@ impl WrapCmd{
             value:String::new(),
         };
         //如果有value,解析value
-        if let Cmd::Set(_)=cmd{
+        if let Cmd::Set(_)=cmd {
+            let st=5+key_len as usize;
+            let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
+            let val_len=u32::from_be_bytes(bytes);
+            let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
+            res.value=val;
+        }else if let Cmd::VSet(_)=cmd{
             let st=5+key_len as usize;
             let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
             let val_len=u32::from_be_bytes(bytes);
@@ -193,4 +221,44 @@ pub fn init_logger(log_dir: &str,is_client:bool) -> Result<()> {
         .init();
 
     Ok(())
+}
+
+//向量校验
+pub fn validate_vector(s:&str)->Result<String>{
+    let s=s.trim();
+    let re = Regex::new(r"^\[(\s*[^\[\],\s]+(\s*,\s*[^\[\],\s]+)*)?\s*\]$").unwrap();
+    if !re.is_match(s) {
+        return Err(KvsError::StringError("Invalid vector format. Expected: [val1,val2,...]".to_string()));
+    }
+
+    let s=s.trim_matches(|c| c == '[' || c == ']');
+    let split:Vec<&str>=s.split(',').collect();
+    let len=split.len();
+    if len==0{
+        return Err(KvsError::StringError("Vector must have at least 1 dimension".to_string()));
+    }
+
+    let mut vecs=String::from("[");
+    let mut i=0;
+    for s in split{
+        let res=s.trim().parse::<f32>();
+        if res.is_err(){//非数字
+            return Err(KvsError::StringError("Invalid input syntax for type vector".to_string()));
+        }
+        let num=res.unwrap();
+        if num.is_nan() {
+            return Err(KvsError::StringError("NAN not allowed in vector".to_string()));
+        }
+        if num.is_infinite(){
+            return Err(KvsError::StringError("Inf not allowed in vector".to_string()));
+        }
+        vecs.push_str(s.trim());
+        if i!=len-1{
+            vecs.push_str(",");
+        }
+        i+=1;
+
+    }
+    vecs.push_str("]");
+    Ok(vecs)
 }
