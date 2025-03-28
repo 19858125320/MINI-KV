@@ -31,15 +31,24 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
     let wrap_cmd=match cmd{
         "get"=>{
             let key=iter.next().ok_or(KvsError::InvalidCommand)?;
+            if iter.next().is_some(){
+                return Err(KvsError::InvalidCommand);
+            }
             WrapCmd::new_extra(Cmd::Get(1), key.to_string(), "".to_string())
         }
         "set"=>{
             let key=iter.next().ok_or(KvsError::InvalidCommand)?;
             let value=iter.next().ok_or(KvsError::InvalidCommand)?;
+            if iter.next().is_some(){
+                return Err(KvsError::InvalidCommand);
+            }
             WrapCmd::new_extra(Cmd::Set(2), key.to_string(), value.to_string())
         }
         "remove"=>{
             let key=iter.next().ok_or(KvsError::InvalidCommand)?;
+            if iter.next().is_some(){
+                return Err(KvsError::InvalidCommand);
+            }
             WrapCmd::new_extra(Cmd::Remove(3), key.to_string(), "".to_string())
         }
         _=>{
@@ -127,6 +136,7 @@ async fn main()->Result<()>{
             // 处理 Ctrl+C 信号
             _ = signal::ctrl_c() => {
                 warn!("Received Ctrl+C, shutting down...");
+                println!("exit success");
                 break;
             }
             // 读取用户输入并发送请求
@@ -137,12 +147,14 @@ async fn main()->Result<()>{
                 match result {
                     Ok(Ok(line)) => {
                         let line = line.trim();
+                        if line.is_empty() || line=="\n" || line=="\r\n" {
+                            continue;
+                        }
                         if line.eq_ignore_ascii_case("exit") {
                             println!("exit success");
                             break;
                         }
-
-
+                       
                         // 发送请求并打印响应
                         match handle_request(&mut client,line).await {
                             Ok(_) => {},

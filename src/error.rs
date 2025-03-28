@@ -39,7 +39,7 @@ pub enum KvsError {
     /// It indicated a corrupted log or a program bug.
     #[fail(display = "Unexpected command type")]
     UnexpectedCommandType,
-    #[fail(display = "Unexpected command type")]
+    #[fail(display = "Invalid Command,must be [get <key> <value>,set <key>,remove <key>]")]
     InvalidCommand,
 }
 

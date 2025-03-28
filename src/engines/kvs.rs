@@ -1,5 +1,6 @@
 use crossbeam_skiplist::SkipMap;
 use bincode::{self,Encode,Decode,enc::write::Writer,de::read::Reader};
+use log::info;
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
@@ -181,7 +182,11 @@ impl KvStoreReader {
     // Read the log file at the given `CommandPos` and deserialize it to `Command`.
     fn read_command(&self, cmd_pos: CommandPos) -> Result<Command> {
         self.read_and(cmd_pos, |cmd_reader| {
-            Ok(bincode::decode_from_reader(cmd_reader, bincode::config::standard())?)
+            cmd_reader.take(cmd_pos.len);
+            let mut buf=vec![0u8;cmd_pos.len as usize];
+            cmd_reader.read_exact(&mut buf)?;
+            let res:(Command,usize)=bincode::decode_from_slice(buf.as_slice(), bincode::config::standard())?;
+            Ok(res.0)
         })
     }
 }
@@ -220,7 +225,7 @@ impl KvStoreWriter {
                 self.uncompacted += old_cmd.value().len;
             }
             self.index
-                .insert(key, (self.current_gen, pos..self.writer.pos).into());
+                .insert(key.clone(), (self.current_gen, pos..self.writer.pos).into());
         }
 
         if self.uncompacted > COMPACTION_THRESHOLD {
@@ -418,6 +423,7 @@ impl From<(u64, Range<u64>)> for CommandPos {
 struct BufReaderWithPos<R: Read + Seek> {
     reader: BufReader<R>,
     pos: u64,
+    len:u64,
 }
 
 impl<R: Read + Seek> BufReaderWithPos<R> {
@@ -426,7 +432,18 @@ impl<R: Read + Seek> BufReaderWithPos<R> {
         Ok(BufReaderWithPos {
             reader: BufReader::new(inner),
             pos,
+            len:0,
         })
+    }
+
+    fn take(&mut self,len:u64){
+        self.len=len;
+    }
+
+    fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
+        self.reader.read_exact(buf)?;
+        self.pos += buf.len() as u64;
+        Ok(())
     }
 }
 

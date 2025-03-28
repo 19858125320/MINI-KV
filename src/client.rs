@@ -17,7 +17,7 @@ impl KvClient{
         loop{
             match TcpStream::connect(addr).await{
                 Ok(stream)=>{
-                    info!("Connected to server success");
+                    info!("Connected to server:{} success",addr);
                     let (reader, writer) = stream.into_split();
                     return Ok(KvClient { reader: BufReader::new(reader), writer });
                 },
@@ -38,7 +38,7 @@ impl KvClient{
         let buf=cmd.encode();
         self.writer.write_all(buf.as_slice()).await?;
         self.writer.flush().await?;
-        info!("send request {:?} to server",cmd);
+        info!("send {} request to server",cmd.cmd.to_string());
 
         //读取响应
         let mut response=String::new();

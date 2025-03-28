@@ -26,6 +26,14 @@ impl Cmd{
             return Cmd::Remove(3);
         }
     }
+
+    pub fn to_string(&self)->String{
+        match self{
+            Cmd::Get(_)=>"Get".to_string(),
+            Cmd::Set(_)=>"Set".to_string(),
+            Cmd::Remove(_)=>"Remove".to_string(),
+        }
+    }
 }
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct WrapCmd {
@@ -110,8 +118,8 @@ impl WrapCmd{
 
 //响应协议格式
 /*
-成功：OK[value]//只有Get响应有value
-失败：Error<message>
+成功：OK[value]\n//只有Get响应有value
+失败：Error<message>\n
 */
 
 pub async fn parse_response(s:String)->Result<String>{
@@ -155,7 +163,7 @@ pub fn init_logger(log_dir: &str,is_client:bool) -> Result<()> {
             // 自定义日志格式
             writeln!(
                 buf,
-                "{} {} {} - {}",
+                "{}|{}|{}|: {}",
                 chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                 record.level(),
                 record.target(),
