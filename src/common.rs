@@ -10,38 +10,67 @@ use regex::Regex;
 <len><cmd><keylen><key>[<valuelen><value>]<ttl> //其中value部分只有set命令才有
 */
 
-#[derive(Copy,Clone,Debug,PartialEq,Eq)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub enum Cmd{
-    Get(u8),
-    Set(u8),
-    Remove(u8),
-    Scan(u8),
+    Get(GetCmd),
+    Set(SetCmd),
+    Remove(RemoveCmd),
+    Scan(ScanCmd),
     //以下是向量类型相关的命令
-    VGet(u8),
-    VSet(u8),
-    VDel(u8),
+    VGet(GetVector),
+    VSet(SetVector),
+    VDel(DelVector),
+
+    //ping
+    Ping(PingCmd),
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct GetCmd{
+    pub key:String,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct SetCmd{
+    pub key:String,
+    pub value:String,
+    pub expire:u32,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct RemoveCmd{
+    pub key:String,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct ScanCmd{
+    pub start:String,
+    pub end:String,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct GetVector{
+    pub key:String,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct SetVector{
+    pub key:String,
+    pub value:String,
+    pub expire:u32,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct DelVector{
+    pub key:String,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct PingCmd{
+    pub message:String,
 }
 
 impl Cmd{
-    fn from_u8(c:u8)->Self{
-        if c==1{
-            return Cmd::Get(1);
-        }else if c==2{
-            return Cmd::Set(2);
-        }else if c==3{
-            return Cmd::Remove(3);
-        }else if c==4{
-            return Cmd::Scan(4);
-        }else if c==5{
-            return Cmd::VGet(5);
-        }else if c==6{
-            return Cmd::VSet(6);
-        }else if c==7{
-            return Cmd::VDel(7);
-        }
-        panic!("Invalid Cmd");
-    }
-
     pub fn to_string(&self)->String{
         match self{
             Cmd::Get(_)=>"Get".to_string(),
@@ -51,69 +80,82 @@ impl Cmd{
             Cmd::VGet(_)=>"VGet".to_string(),
             Cmd::VSet(_)=>"VSet".to_string(),
             Cmd::VDel(_)=>"VDel".to_string(),
+            Cmd::Ping(_)=>"Ping".to_string(),
         }
-    }
-}
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub struct WrapCmd {
-    pub cmd:Cmd,
-    pub key:String,
-    pub value:String,
-    pub expire:u32,
-}
-
-impl WrapCmd{
-    pub fn new_extra(cmd:Cmd,key:String,val:String,ttl:u32)->Self{
-        Self{cmd:cmd,key:key,value:val,expire:ttl}
     }
 
     pub fn encode(&self)->Vec<u8>{
         let mut res=Vec::new();
         let mut fres=Vec::new();
         let mut len:u32=1;
-        match self.cmd{
-            Cmd::Get(c)|Cmd::VGet(c)=>{
-                res.push(c);
+        match self{
+            Cmd::Get(c)=>{
+                res.push(1 as u8);
                 len+=4;
-                len+=self.key.len() as u32;
-                res.extend(u32::to_be_bytes(self.key.len() as u32));
-                res.extend_from_slice(self.key.as_bytes());
+                len+=c.key.len() as u32;
+                res.extend(u32::to_be_bytes(c.key.len() as u32));
+                res.extend_from_slice(c.key.as_bytes());
             },
-            Cmd::Set(c)|Cmd::VSet(c)=>{
-                res.push(c);
+            Cmd::Set(c)=>{
+                res.push(2 as u8);
                 len+=12;
-                len+=self.key.len() as u32;
-                len+=self.value.len() as u32;
-                res.extend(u32::to_be_bytes(self.key.len() as u32));
-                res.extend_from_slice(self.key.as_bytes());
-                res.extend(u32::to_be_bytes(self.value.len() as u32));
-                res.extend_from_slice(self.value.as_bytes());
-                res.extend(u32::to_be_bytes(self.expire));
+                len+=c.key.len() as u32;
+                len+=c.value.len() as u32;
+                res.extend(u32::to_be_bytes(c.key.len() as u32));
+                res.extend_from_slice(c.key.as_bytes());
+                res.extend(u32::to_be_bytes(c.value.len() as u32));
+                res.extend_from_slice(c.value.as_bytes());
+                res.extend(u32::to_be_bytes(c.expire));
             },
             Cmd::Remove(c)=>{
-                res.push(c);
+                res.push(3 as u8);
                 len+=4;
-                len+=self.key.len() as u32;
-                res.extend(u32::to_be_bytes(self.key.len() as u32));
-                res.extend_from_slice(self.key.as_bytes());
-            },
-            Cmd::VDel(c)=>{
-                res.push(c);
-                len+=4;
-                len+=self.key.len() as u32;
-                res.extend(u32::to_be_bytes(self.key.len() as u32));
-                res.extend_from_slice(self.key.as_bytes());
+                len+=c.key.len() as u32;
+                res.extend(u32::to_be_bytes(c.key.len() as u32));
+                res.extend_from_slice(c.key.as_bytes());
             },
             Cmd::Scan(c)=>{
-                res.push(c);
+                res.push(4 as u8);
                 len+=8;
-                len+=self.key.len() as u32;
-                len+=self.value.len() as u32;
-                res.extend(u32::to_be_bytes(self.key.len() as u32));
-                res.extend_from_slice(self.key.as_bytes());
-                res.extend(u32::to_be_bytes(self.value.len() as u32));
-                res.extend_from_slice(self.value.as_bytes());
-            }
+                len+=c.start.len() as u32;
+                len+=c.end.len() as u32;
+                res.extend(u32::to_be_bytes(c.start.len() as u32));
+                res.extend_from_slice(c.start.as_bytes());
+                res.extend(u32::to_be_bytes(c.end.len() as u32));
+                res.extend_from_slice(c.end.as_bytes());
+            },
+            Cmd::VGet(c)=>{
+                res.push(5 as u8);
+                len+=4;
+                len+=c.key.len() as u32;
+                res.extend(u32::to_be_bytes(c.key.len() as u32));
+                res.extend_from_slice(c.key.as_bytes());
+            },
+            Cmd::VSet(c)=>{
+                res.push(6 as u8);
+                len+=12;
+                len+=c.key.len() as u32;
+                len+=c.value.len() as u32;
+                res.extend(u32::to_be_bytes(c.key.len() as u32));
+                res.extend_from_slice(c.key.as_bytes());
+                res.extend(u32::to_be_bytes(c.value.len() as u32));
+                res.extend_from_slice(c.value.as_bytes());
+                res.extend(u32::to_be_bytes(c.expire));
+            },
+            Cmd::VDel(c)=>{
+                res.push(7 as u8);
+                len+=4;
+                len+=c.key.len() as u32;
+                res.extend(u32::to_be_bytes(c.key.len() as u32));
+                res.extend_from_slice(c.key.as_bytes());
+            },
+            Cmd::Ping(c)=>{
+                res.push(8 as u8);
+                len+=4;
+                len+=c.message.len() as u32;
+                res.extend(u32::to_be_bytes(c.message.len() as u32));
+                res.extend_from_slice(c.message.as_bytes());
+            },
         }
         fres.extend(u32::to_be_bytes(len));
         fres.extend_from_slice(res.as_slice());
@@ -121,53 +163,88 @@ impl WrapCmd{
     }
 
     pub fn decode(len:u32,s:Vec<u8>)->Result<Self>{
-        //提取长度
-        // let bytes:[u8;4]=s[0..4].try_into().unwrap();
-        // let len=u32::from_be_bytes(bytes);
         if len> s.len() as u32{
             return Err(KvsError::DecodeError);
         }
-
         //解析cmd
-        let cmd=Cmd::from_u8(s[0]);
+        match s[0]{
+            1=>{//get
+                let bytes:[u8;4]=s[1..5].try_into().unwrap();
+                let key_len=u32::from_be_bytes(bytes);
+                let key=String::from_utf8(s[5..5+key_len as usize].to_vec()).unwrap();
+                return Ok(Cmd::Get(GetCmd{key:key}));
+            },
+            2=>{//set
+                let bytes:[u8;4]=s[1..5].try_into().unwrap();
+                let key_len=u32::from_be_bytes(bytes);
+                let key=String::from_utf8(s[5..5+key_len as usize].to_vec()).unwrap();
 
-        //解析key
-        let bytes:[u8;4]=s[1..5].try_into().unwrap();
-        let key_len=u32::from_be_bytes(bytes);
-        let key=String::from_utf8(s[5..5+key_len as usize].to_vec()).unwrap();
+                let st=5+key_len as usize;
+                let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
+                let val_len=u32::from_be_bytes(bytes);
+                let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
 
-        let mut res=WrapCmd{
-            cmd:cmd,
-            key:key,
-            value:String::new(),
-            expire:0,
-        };
-        //如果有value,解析value
-        if let Cmd::Set(_)=cmd {
-            let st=5+key_len as usize;
-            let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
-            let val_len=u32::from_be_bytes(bytes);
-            let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
-            res.value=val;
+                let st=st+4+val_len as usize;
+                let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
+                let ttl=u32::from_be_bytes(bytes);
+                
+                return Ok(Cmd::Set(SetCmd{key:key,value:val,expire:ttl}));
+            },
+            3=>{//remove
+                let bytes:[u8;4]=s[1..5].try_into().unwrap();
+                let key_len=u32::from_be_bytes(bytes);
+                let key=String::from_utf8(s[5..5+key_len as usize].to_vec()).unwrap();
+                return Ok(Cmd::Remove(RemoveCmd{key:key}));
+            },
+            4=>{//scan
+                let bytes:[u8;4]=s[1..5].try_into().unwrap();
+                let start_len=u32::from_be_bytes(bytes);
+                let start=String::from_utf8(s[5..5+start_len as usize].to_vec()).unwrap();
 
-            let st=st+4+val_len as usize;
-            let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
-            let ttl=u32::from_be_bytes(bytes);
-            res.expire=ttl;
-        }else if let Cmd::VSet(_)=cmd{
-            let st=5+key_len as usize;
-            let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
-            let val_len=u32::from_be_bytes(bytes);
-            let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
-            res.value=val;
-        }else if let Cmd::Scan(_)=cmd{
-            let st=5+key_len as usize;
-            let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
-            let val_len=u32::from_be_bytes(bytes);
-            let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
-            res.value=val;
+                let st=5+start_len as usize;
+                let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
+                let end_len=u32::from_be_bytes(bytes);
+                let end=String::from_utf8(s[st+4..st+4+end_len as usize].to_vec()).unwrap();
+                return Ok(Cmd::Scan(ScanCmd{start:start,end:end}));
+            },
+            5=>{
+                let bytes:[u8;4]=s[1..5].try_into().unwrap();
+                let key_len=u32::from_be_bytes(bytes);
+                let key=String::from_utf8(s[5..5+key_len as usize].to_vec()).unwrap();
+                return Ok(Cmd::VGet(GetVector{key:key}));
+            }
+            6=>{
+                let bytes:[u8;4]=s[1..5].try_into().unwrap();
+                let key_len=u32::from_be_bytes(bytes);
+                let key=String::from_utf8(s[5..5+key_len as usize].to_vec()).unwrap();
+
+                let st=5+key_len as usize;
+                let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
+                let val_len=u32::from_be_bytes(bytes);
+                let val=String::from_utf8(s[st+4..st+4+val_len as usize].to_vec()).unwrap();
+
+                let st=st+4+val_len as usize;
+                let bytes:[u8;4]=s[st..st+4].try_into().unwrap();
+                let ttl=u32::from_be_bytes(bytes);
+                
+                return Ok(Cmd::VSet(SetVector{key:key,value:val,expire:ttl}));
+            }
+            7=>{
+                let bytes:[u8;4]=s[1..5].try_into().unwrap();
+                let key_len=u32::from_be_bytes(bytes);
+                let key=String::from_utf8(s[5..5+key_len as usize].to_vec()).unwrap();
+                return Ok(Cmd::VDel(DelVector{key:key}));
+            }
+            8=>{
+                let bytes:[u8;4]=s[1..5].try_into().unwrap();
+                let message_len=u32::from_be_bytes(bytes);
+                let message=String::from_utf8(s[5..5+message_len as usize].to_vec()).unwrap();
+                return Ok(Cmd::Ping(PingCmd{message:message}));
+            }
+            _=>{
+                Err(KvsError::DecodeError)
+            }
         }
-        Ok(res)
     }
 }
 

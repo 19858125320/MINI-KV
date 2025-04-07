@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{tcp::{OwnedReadHalf,OwnedWriteHalf},TcpStream};
 use tokio::time::{self,Duration};
-use crate::{Result,parse_response, WrapCmd};
+use crate::{Result,parse_response, Cmd};
 use log::{error,info, warn};
 
 pub struct KvClient{
@@ -34,11 +34,11 @@ impl KvClient{
         }
     }
 
-    pub async fn send_request(&mut self,cmd:WrapCmd)->Result<String>{
+    pub async fn send_request(&mut self,cmd:Cmd)->Result<String>{
         let buf=cmd.encode();
         self.writer.write_all(buf.as_slice()).await?;
         self.writer.flush().await?;
-        info!("send {} request to server",cmd.cmd.to_string());
+        info!("send {} request to server",cmd.to_string());
 
         //读取响应
         let mut response=String::new();

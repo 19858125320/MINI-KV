@@ -14,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use crate::{Result,KvsError,KVEngine};
 
-const COMPACTION_THRESHOLD: u64 = 1024 * 1024 * 1024;//1GB
+const COMPACTION_THRESHOLD: u64 = 2 * 1024;//2GB
 
 #[derive(Clone)]
 pub struct KvStore {
@@ -257,7 +257,7 @@ impl KvStoreWriter {
             self.index
                 .insert(key.clone(), cmd_pos);
         }
-
+        //info!("uncompacted: {}", self.uncompacted);
         if self.uncompacted > COMPACTION_THRESHOLD {
             self.compact()?;
         }
@@ -289,6 +289,7 @@ impl KvStoreWriter {
 
     /// Clears stale entries in the log.
     fn compact(&mut self) -> Result<()> {
+        info!("Compacting log ...");
         // increase current gen by 2. current_gen + 1 is for the compaction file
         let compaction_gen = self.current_gen + 1;
         self.current_gen += 2;

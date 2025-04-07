@@ -2,7 +2,7 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::io::{self,BufReader, BufWriter, Write, Read};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use log::{debug, error, info};
-use crate::{Cmd, KvsError, KVEngine,ThreadPool, Result, WrapCmd};
+use crate::{Cmd, KvsError, KVEngine,ThreadPool, Result};
 use std::cell::RefCell;
 
 pub struct KvServer<E:KVEngine,P:ThreadPool>{
@@ -47,12 +47,12 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
         // 读取命令
         let mut command_buf = vec![0u8; len];
         reader.read_exact(&mut command_buf)?;
-        let cmd=WrapCmd::decode(len as u32,command_buf)?;
-        info!("Received command: {:?}",cmd);
-        match cmd.cmd{
-            Cmd::Get(_)|Cmd::VGet(_)=>{
-                info!("receive get cmd {:?} from client",cmd);
-                let mut res=match engine.get(cmd.key){
+        let cmd=Cmd::decode(len as u32,command_buf)?;
+        //info!("Received command: {:?}",cmd);
+        match cmd{
+            Cmd::Get(c)=>{
+                info!("receive get cmd {:?} from client",c);
+                let mut res=match engine.get(c.key){
                     Ok(Some(v))=>{
                         let res=generate_response(true, v);
                         res
@@ -69,9 +69,28 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                 res.push('\n');
                 writer.write_all(res.as_bytes())?;
             },
-            Cmd::Set(_)|Cmd::VSet(_)=>{
-                info!("receive set cmd {:?}  from client",cmd);
-                let mut res=match engine.set(cmd.key, cmd.value,cmd.expire){
+            Cmd::VGet(c)=>{
+                info!("receive vget cmd {:?} from client",c);
+                let mut res=match engine.get(c.key){
+                    Ok(Some(v))=>{
+                        let res=generate_response(true, v);
+                        res
+                    },
+                    Ok(None)=>{
+                        let res=generate_response(false,"Key not found".to_string());
+                        res
+                    },
+                    Err(e)=>{
+                        let res=generate_response(false,format!("{}",e));
+                        res
+                    }
+                };
+                res.push('\n');
+                writer.write_all(res.as_bytes())?;
+            }
+            Cmd::Set(c)=>{
+                info!("receive set cmd {:?}  from client",c);
+                let mut res=match engine.set(c.key, c.value,c.expire){
                     Ok(_)=>{
                         let res=generate_response(true, "".to_string());
                         res
@@ -84,9 +103,24 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                 res.push('\n');
                 writer.write_all(res.as_bytes())?;
             },
-            Cmd::Remove(_)|Cmd::VDel(_)=>{
-                info!("receive remove cmd {:?}  from client",cmd);
-                let mut res=match engine.remove(cmd.key){
+            Cmd::VSet(c)=>{
+                info!("receive vset cmd {:?}  from client",c);
+                let mut res=match engine.set(c.key, c.value,c.expire){
+                    Ok(_)=>{
+                        let res=generate_response(true, "".to_string());
+                        res
+                    },
+                    Err(e)=>{
+                        let res=generate_response(false,format!("{}",e));
+                        res
+                    }
+                };
+                res.push('\n');
+                writer.write_all(res.as_bytes())?;
+            }
+            Cmd::Remove(c)=>{
+                info!("receive remove cmd {:?}  from client",c);
+                let mut res=match engine.remove(c.key){
                     Ok(_)=>{
                         let res=generate_response(true, "".to_string());
                         res
@@ -103,9 +137,28 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                 res.push('\n');
                 writer.write_all(res.as_bytes())?;
             },
-            Cmd::Scan(_)=>{
-                info!("receive scan cmd {:?}  from client",cmd);
-                let mut res=match engine.scan(cmd.key, cmd.value){
+            Cmd::VDel(c)=>{
+                info!("receive vdel cmd {:?}  from client",c);
+                let mut res=match engine.remove(c.key){
+                    Ok(_)=>{
+                        let res=generate_response(true, "".to_string());
+                        res
+                    },
+                    Err(KvsError::KeyNotFound)=>{
+                        let res=generate_response(false,"Key not found".to_string());
+                        res
+                    }
+                    Err(e)=>{
+                        let res=generate_response(false,format!("{}",e));
+                        res
+                    }
+                };
+                res.push('\n');
+                writer.write_all(res.as_bytes())?;
+            }
+            Cmd::Scan(c)=>{
+                info!("receive scan cmd {:?}  from client",c);
+                let mut res=match engine.scan(c.start, c.end){
                     Ok(v)=>{
                         let mut res=String::from("OK");
                         let mut i=0;
@@ -124,6 +177,15 @@ fn handle_client<E:KVEngine>(stream:TcpStream,peer_addr:SocketAddr,shut_down:Arc
                         res
                     }
                 };
+                res.push('\n');
+                writer.write_all(res.as_bytes())?;
+            }
+            Cmd::Ping(c)=>{
+                info!("receive ping cmd {:?}  from client",c);
+                let mut res =generate_response(true, "PONG".to_string());
+                if !c.message.is_empty(){
+                    res=generate_response(true, c.message);
+                }
                 res.push('\n');
                 writer.write_all(res.as_bytes())?;
             }

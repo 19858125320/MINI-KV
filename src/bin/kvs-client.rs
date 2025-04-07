@@ -1,5 +1,6 @@
 use clap::Parser;
-use kvs::{KvClient,Cmd,WrapCmd,KvsError,Result,init_logger,validate_vector};
+use kvs::common::{GetCmd,SetCmd,RemoveCmd,ScanCmd,DelVector, GetVector, SetVector,PingCmd};
+use kvs::{init_logger, validate_vector, Cmd, KvClient, KvsError, Result};
 use std::net::SocketAddr;
 use tokio::signal;
 use std::io::{self,Write};
@@ -23,13 +24,26 @@ fn parse_addr(s:&str)->std::result::Result<SocketAddr,String>{
     s.parse::<SocketAddr>().map_err(|e|format!("Invalid address '{}': {}", s, e))
 }
 
-async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
+async fn parse_cmd(cmd:&str)->Result<Cmd>{
+    //处理ping命令
+    let mut iter=cmd.split_whitespace();
+    let cmd=iter.next().ok_or(KvsError::InvalidCommand)?;
+    if cmd.eq_ignore_ascii_case("ping"){
+        let mut message=String::from("");
+        let it=iter.next();
+        if it.is_some(){
+            message=it.unwrap().to_string();
+        }
+        if iter.next().is_some(){
+            return Err(KvsError::InvalidCommand);
+        }
+        return Ok(Cmd::Ping(PingCmd { message}));
+    }
     let parts:Vec<&str>=cmd.splitn(2, ' ').collect();
     if parts.len()<2{
         return Err(KvsError::InvalidCommand);
     }
-    //let mut iter=cmd.split_whitespace();
-    //let cmd=iter.next().ok_or(KvsError::InvalidCommand)?;
+    
     let cmd=parts[0];
     let remain=parts[1].trim();
 
@@ -40,7 +54,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::Get(1), key.to_string(), "".to_string(),0)
+            Cmd::Get(GetCmd { key: key.to_string()})
         }
         "set"=>{
             let mut iter=remain.split_whitespace();
@@ -55,12 +69,12 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
                         return Err(KvsError::InvalidCommand);
                     }
                     let ex:u32=ex.parse().map_err(|_|KvsError::StringError("expire time invalid".to_string()))?;
-                    return Ok(WrapCmd::new_extra(Cmd::Set(2), key.to_string(), value.to_string(),ex));
+                    return Ok(Cmd::Set(SetCmd { key: key.to_string(), value: value.to_string(), expire: ex}));
                 }else{
                     return Err(KvsError::InvalidCommand);
                 }
             }
-            WrapCmd::new_extra(Cmd::Set(2), key.to_string(), value.to_string(),0)
+            Cmd::Set(SetCmd { key: key.to_string(), value: value.to_string(), expire: 0 })
         }
         "remove"=>{
             let mut iter=remain.split_whitespace();
@@ -68,7 +82,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::Remove(3), key.to_string(), "".to_string(),0)
+            Cmd::Remove(RemoveCmd { key: key.to_string()})
         }
         "scan"=>{
             let mut iter=remain.split_whitespace();
@@ -77,7 +91,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::Scan(4), start.to_string(), end.to_string(),0)
+            Cmd::Scan(ScanCmd { start: start.to_string(), end: end.to_string()})
         }
         "vget"=>{
             let mut iter=remain.split_whitespace();
@@ -85,7 +99,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::VGet(5), key.to_string(), "".to_string(),0)
+            Cmd::VGet(GetVector { key: key.to_string()})
         }
         "vset"=>{
             let parts:Vec<&str>=remain.splitn(2, ' ').collect();
@@ -99,7 +113,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             //     return Err(KvsError::InvalidCommand);
             // }
             //校验value是否符合vector格式
-            WrapCmd::new_extra(Cmd::VSet(6), key.to_string(), value,0)
+            Cmd::VSet(SetVector { key: key.to_string(), value: value, expire: 0 })
         }
         "vdel"=>{
             let mut iter=remain.split_whitespace();
@@ -107,7 +121,7 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
             if iter.next().is_some(){
                 return Err(KvsError::InvalidCommand);
             }
-            WrapCmd::new_extra(Cmd::VDel(7), key.to_string(), "".to_string(),0)
+            Cmd::VDel(DelVector { key: key.to_string()})
         }
         _=>{
             return Err(KvsError::InvalidCommand);
@@ -118,18 +132,19 @@ async fn parse_cmd(cmd:&str)->Result<WrapCmd>{
 
 async fn handle_request(client:&mut KvClient,cmd:&str)->Result<()>{
     let cmd=parse_cmd(cmd).await?;
-    info!("parse command success");
     let res=client.send_request(cmd.clone()).await;
     match res {
         Ok(response) => {
-            if cmd.cmd==Cmd::Get(1){
+            if let Cmd::Get(_)=cmd{
                 println!("{}",response);
-            } else if cmd.cmd==Cmd::Scan(4){
+            } else if let Cmd::Scan(_)=cmd{
                 let v:Vec<&str>=response.split_whitespace().collect();
                 for s in v{
                     println!("{}",s);
                 }
-            }else if cmd.cmd==Cmd::VGet(5){
+            }else if let Cmd::VGet(_)=cmd{
+                println!("{}",response);
+            }else if let Cmd::Ping(_)=cmd{
                 println!("{}",response);
             }else{
                 println!("Ok");
@@ -216,6 +231,7 @@ async fn main()->Result<()>{
                         }
                         if line.eq_ignore_ascii_case("exit") {
                             println!("exit success");
+                            info!("Received exit command, exit normal");
                             break;
                         }
                        
